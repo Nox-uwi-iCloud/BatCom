@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分流重定向</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+body{display:flex;flex-direction:column;align-items:center;margin-top:80px;gap:22px;padding:0 16px}
+.title{font-size:26px;color:#111}
+.tip-text{color:#555}
+
+/* 弹窗遮罩通用 */
+.mask{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center}
+.modal{width:340px;background:#fff;padding:24px;border-radius:10px}
+.modal h3{margin-bottom:12px;font-size:18px}
+.modal p{color:#444;margin-bottom:16px;line-height:1.5}
+.modal-input{width:100%;height:42px;padding:0 12px;border:1px solid #ddd;border-radius:6px;margin-bottom:14px;font-size:16px}
+.modal-btns{display:flex;gap:10px}
+.mbtn{flex:1;height:40px;border:none;border-radius:6px;cursor:pointer;font-size:15px}
+.confirm{background:#007aff;color:#fff}
+.close{background:#eeeeee;color:#222}
+.err-text{color:#f03c3c;font-size:14px;margin-top:-8px;margin-bottom:8px;display:none}
+
+/* 人机验证框 */
+.robot-box{width:330px;border:1px solid #ddd;border-radius:6px;padding:14px;display:flex;align-items:center;gap:10px}
+#robotCheck{width:22px;height:22px;cursor:pointer}
+
+/* 验证码画布 */
+#captchaCanvas{width:100%;height:90px;border:1px solid #eee;margin-bottom:12px}
+
+/* 提交按钮 */
+#submitJump{width:330px;height:46px;background:#222;color:#fff;border:none;border-radius:6px;font-size:16px;opacity:0.4;cursor:not-allowed}
+#submitJump.pass{opacity:1;cursor:pointer}
+.success-info{color:#00a643;display:none}
+</style>
+</head>
+<body>
+<h2 class="title">分流重定向</h2>
+<p class="tip-text">完成多层安全校验后自动分配低负载节点</p>
+
+<div class="robot-box">
+    <input type="checkbox" id="robotCheck">
+    <label>I'm not robot</label>
+</div>
+
+<button id="submitJump" disabled>全部校验完成，进入站点</button>
+<p class="success-info" id="successTip">校验全部通过，正在分流跳转...</p>
+
+<!-- 1. VPN拦截弹窗 -->
+<div class="mask" id="vpnMask">
+    <div class="modal">
+        <h3>检测到代理/VPN工具</h3>
+        <p>系统识别当前网络使用VPN/代理服务，请关闭所有加速器、VPN后刷新页面重试。</p>
+        <div class="modal-btns">
+            <button class="mbtn close" onclick="location.reload()">已关闭，刷新页面</button>
+        </div>
+    </div>
+</div>
+
+<!-- 2. 地区语言不匹配弹窗 -->
+<div class="mask" id="langMask">
+    <div class="modal">
+        <h3>语言与访问地区不匹配</h3>
+        <p>浏览器首选语言与当前IP所属地区不一致，存在异常访问风险。请修改系统首选语言后重试。</p>
+        <div class="modal-btns">
+            <button class="mbtn close" onclick="location.reload()">已修改，刷新页面</button>
+        </div>
+    </div>
+</div>
+
+<!-- 3. 数字验证码弹窗 -->
+<div class="mask" id="captchaMask">
+    <div class="modal">
+        <canvas id="captchaCanvas"></canvas>
+        <input class="modal-input" id="codeInput" placeholder="输入图片内数字">
+        <p class="err-text" id="codeErr">数字错误，请重新输入</p>
+        <div class="modal-btns">
+            <button class="mbtn confirm" id="codeConfirm">确认</button>
+            <button class="mbtn close" id="codeClose">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 4. 浮点数学校验弹窗 -->
+<div class="mask" id="mathMask">
+    <div class="modal">
+        <h3>安全数学校验</h3>
+        <p>计算：0.1 + 0.2 = ?</p>
+        <input class="modal-input" id="mathInput" placeholder="填写计算结果">
+        <p class="err-text" id="mathErr">答案错误，人工输入0.3</p>
+        <div class="modal-btns">
+            <button class="mbtn confirm" id="mathConfirm">提交答案</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 全局校验状态
+let checkVpnPass = false;
+let checkLangPass = false;
+let checkCaptchaPass = false;
+let checkMathPass = false;
+let captchaCode = "";
+const canvas = document.getElementById("captchaCanvas");
+const ctx = canvas.getContext("2d");
+canvas.width = 292;
+canvas.height = 90;
+
+// 步骤1：简易VPN/代理检测（前端特征判断）
+function detectVPN() {
+    const proxyList = ['proxy','vpn','socks','tunnel'];
+    let hasProxy = false;
+    const navInfo = navigator.userAgent.toLowerCase();
+    proxyList.forEach(word=>{
+        if(navInfo.includes(word)) hasProxy = true;
+    })
+    // 判断浏览器网络API代理标识
+    if("connection" in navigator && navigator.connection.type === "vpn") hasProxy = true;
+    if(hasProxy){
+        document.getElementById("vpnMask").style.display = "flex";
+        return false;
+    }
+    checkVpnPass = true;
+    checkNextStep();
+}
+
+// 步骤2：地区语言校验
+function checkLanguage() {
+    const browserLang = navigator.language;
+    // 国内标准语言zh-CN/zh
+    const isCnLang = browserLang.startsWith("zh");
+    // 简化逻辑：前端无法获取真实IP归属，仅校验浏览器语言，非中文直接拦截
+    if(!isCnLang){
+        document.getElementById("langMask").style.display = "flex";
+        return false;
+    }
+    checkLangPass = true;
+    checkNextStep();
+}
+
+// 步骤3：生成干扰数字验证码
+function createCaptcha() {
+    captchaCode = "";
+    const numArr = ['0','1','2','3','4','5','6','7','8','9'];
+    for(let i=0;i<4;i++) captchaCode += numArr[Math.floor(Math.random()*10)];
+    drawCaptchaImg();
+}
+function drawCaptchaImg(){
+    ctx.fillStyle = "#f8f9fa";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.font = "46px Arial";
+    ctx.fillStyle = "#222";
+    ctx.textAlign = "center";
+    for(let i=0;i<4;i++){
+        let x = 40 + i*56;
+        let y = 54 + (Math.random()*14 -7);
+        ctx.fillText(captchaCode[i], x, y);
+    }
+    // 随机干扰线条遮挡数字
+    ctx.strokeStyle = "#555";
+    ctx.lineWidth = 2;
+    for(let i=0;i<6;i++){
+        ctx.beginPath();
+        ctx.moveTo(Math.random()*canvas.width, Math.random()*canvas.height);
+        ctx.lineTo(Math.random()*canvas.width, Math.random()*canvas.height);
+        ctx.stroke();
+    }
+}
+
+// 打开验证码弹窗
+document.getElementById("robotCheck").onchange = function(){
+    if(!this.checked) return;
+    detectVPN();
+}
+
+// 校验流程递进
+function checkNextStep(){
+    if(!checkVpnPass) return;
+    if(!checkLangPass){
+        checkLanguage();
+        return;
+    }
+    // VPN+语言校验通过，弹出验证码
+    document.getElementById("captchaMask").style.display = "flex";
+    createCaptcha();
+    document.getElementById("codeInput").value = "";
+    document.getElementById("codeErr").style.display = "none";
+}
+
+// 验证码确认按钮
+document.getElementById("codeConfirm").onclick = function(){
+    const input = document.getElementById("codeInput").value.trim();
+    if(input !== captchaCode){
+        document.getElementById("codeErr").style.display = "block";
+        createCaptcha();
+        document.getElementById("codeInput").value = "";
+        return;
+    }
+    document.getElementById("captchaMask").style.display = "none";
+    checkCaptchaPass = true;
+    // 验证码通过，弹出浮点数学校验
+    document.getElementById("mathMask").style.display = "flex";
+    document.getElementById("mathInput").value = "";
+    document.getElementById("mathErr").style.display = "none";
+}
+// 关闭验证码弹窗
+document.getElementById("codeClose").onclick = function(){
+    document.getElementById("captchaMask").style.display = "none";
+    document.getElementById("robotCheck").checked = false;
+}
+
+// 数学题校验：机器计算0.1+0.2=0.30000000000000004，人工填0.3
+document.getElementById("mathConfirm").onclick = function(){
+    const mathVal = document.getElementById("mathInput").value.trim();
+    if(mathVal !== "0.3"){
+        document.getElementById("mathErr").style.display = "block";
+        return;
+    }
+    document.getElementById("mathMask").style.display = "none";
+    checkMathPass = true;
+    // 全部校验完成，解锁跳转按钮
+    const jumpBtn = document.getElementById("submitJump");
+    jumpBtn.disabled = false;
+    jumpBtn.classList.add("pass");
+}
+
+// 分流随机跳转
+document.getElementById("submitJump").onclick = function(){
+    document.getElementById("successTip").style.display = "block";
+    const nodeList = ["A.html","B.html","C.html"];
+    const randomTarget = nodeList[Math.floor(Math.random()*nodeList.length)];
+    setTimeout(()=>location.href = randomTarget, 1500);
+}
+</script>
+</body>
+</html>

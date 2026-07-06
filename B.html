@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>节点缓冲加载</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            gap: 16px;
+            background: #f5f7fa;
+        }
+        .title {
+            font-size: 24px;
+            color: #222;
+        }
+        .count-text {
+            font-size: 18px;
+            color: #555;
+        }
+        .num {
+            font-size: 32px;
+            color: #007aff;
+            font-weight: bold;
+        }
+        .skip-tip {
+            margin-top: 20px;
+            color: #777;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h2 class="title">节点缓冲加载中</h2>
+    <p class="count-text">将在 <span class="num" id="timer">3</span> 秒后进入主站</p>
+    <p class="skip-tip">请勿刷新页面，缓冲完成自动跳转</p>
+
+<script>
+    // 倒计时3秒
+    let waitTime = 3;
+    const timerDom = document.getElementById("timer");
+    const timer = setInterval(() => {
+        waitTime--;
+        timerDom.innerText = waitTime;
+        if (waitTime <= 0) {
+            clearInterval(timer);
+            // 跳转主页面 A-bit.html
+            location.href = "A-bit.html";
+        }
+    }, 1000);
+</script>
+</body>
+</html>

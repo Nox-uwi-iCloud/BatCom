@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BatCom - 拖拽式自定义编程语言工具</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+body{background:#0f1117;color:#eee;min-height:100vh}
+header{padding:40px 20px;text-align:center;border-bottom:1px solid #222}
+h1{font-size:36px;color:#44aaff;margin-bottom:10px}
+.subtitle{color:#aaa;font-size:18px}
+.container{max-width:800px;margin:0 auto;padding:50px 20px}
+.block{margin-bottom:40px}
+h2{color:#66bbff;margin-bottom:16px;font-size:24px}
+p{line-height:1.7;color:#ccc;font-size:16px}
+ul{margin:16px 0 16px 22px;color:#ccc}
+li{margin:8px 0}
+.download-box{text-align:center;margin-top:60px}
+.download-btn{
+    display:inline-block;
+    padding:16px 40px;
+    background:#007bff;
+    color:#fff;
+    text-decoration:none;
+    font-size:18px;
+    border-radius:8px;
+    transition:0.2s;
+}
+.download-btn:hover{background:#0062cc}
+footer{text-align:center;padding:30px;color:#777;border-top:1px solid #222;margin-top:80px}
+.github-link{color:#44aaff;text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+    <h1>BatCom</h1>
+    <p class="subtitle">开源可视化拖拽编译工具，轻松自制编程语言</p>
+</header>
+<div class="container">
+    <div class="block">
+        <h2>项目介绍</h2>
+        <p>BatCom 是一款在 GitHub 完全开源的编译制作软件，无需手写大量代码，通过可视化拖拽模块，就能快速打造属于自己的简易编程语言，一键打包生成可运行程序。</p>
+    </div>
+
+    <div class="block">
+        <h2>软件特色</h2>
+        <ul>
+            <li>纯可视化拖拽操作，零基础也能自定义语法</li>
+            <li>开源免费，全部代码托管于 GitHub</li>
+            <li>轻量化编译内核，支持导出 bat / exe 程序</li>
+            <li>内置语法调试窗口，实时预览运行效果</li>
+            <li>无捆绑、无广告，本地离线运行</li>
+        </ul>
+    </div>
+
+    <div class="download-box">
+        <h2>立即下载</h2>
+        <p style="margin-bottom:24px">最新稳定版：bat.exe</p>
+        <!-- 下载按钮，同文件夹放 bat.exe 即可点击下载 -->
+        <a href="bat.exe" class="download-btn" download="bat.exe">下载 bat.exe</a>
+    </div>
+</div>
+<footer>
+    <p>开源地址：<a class="github-link" href="https://github.com/" target="_blank">GitHub BatCom 仓库</a></p>
+    <p style="margin-top:8px">Copyright © BatCom 开源项目</p>
+</footer>
+</body>
+</html>
